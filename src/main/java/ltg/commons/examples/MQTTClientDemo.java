@@ -23,7 +23,7 @@ public class MQTTClientDemo {
       System.out.println("Received \"" + message + "\" on demo1. Bouncing it back to \""+ bounce_channel + "\"");
       sc.publish(bounce_channel, message);
     });
-    System.out.println("Subscribed to channel demo1");
+    System.out.println("Subscribed to channels " + sc.getSubscribedChannels());
 
     // Subscribe to channel "demo2" and set a callback
     // that prints out the received message and unsubscribes
@@ -31,9 +31,9 @@ public class MQTTClientDemo {
     sc.subscribe("demo2", message -> {
       System.out.println("Received \"" + message + "\" on demo2");
       sc.unsubscribe("demo2");
-      System.out.println("Unsubscribed from channel demo2");
+      System.out.println("Subscribed to channels " + sc.getSubscribedChannels());
     });
-    System.out.println("Subscribed to channel demo2");
+    System.out.println("Subscribed to channels " + sc.getSubscribedChannels());
 
     // We are now connected to the MQTT broker and we registered some callbacks.
     // If we don't do something main will terminate and we'll never receive a message
