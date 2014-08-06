@@ -33,6 +33,8 @@ public class MQTTClientDemo {
 
 ```
 
+For a complete example see `MQTTClientDemo.java` in `ltg.commons.examples`.
+
 # Important note
 This library is based off of a fixed version of the [Eclipse Paho java library](http://www.eclipse.org/paho/clients/java/).
 
