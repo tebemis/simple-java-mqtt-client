@@ -1,11 +1,17 @@
 package ltg.commons;
 
-import org.eclipse.paho.client.mqttv3.*;
-import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
+import org.fusesource.hawtbuf.Buffer;
+import org.fusesource.hawtbuf.UTF8Buffer;
+import org.fusesource.mqtt.client.*;
+
+import java.io.UnsupportedEncodingException;
+import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A ready to use, simple MQTT client.
@@ -15,8 +21,9 @@ import java.util.Set;
  */
 public class SimpleMQTTClient {
 
-	// Client
-	protected IMqttAsyncClient client = null;
+
+  // Client
+  protected  CallbackConnection connection = null;
   // List of channels we're subscribed to
   protected Map<String, MessageListener> channels = null;
 
@@ -28,39 +35,63 @@ public class SimpleMQTTClient {
 	 * @param clientId
 	 */
 	public SimpleMQTTClient(String host, String clientId) {
-    // Create Paho client
+    // Create fusesource MQTT client
+    MQTT mqtt = new MQTT();
     try {
-      client = new MqttAsyncClient(hostToURI(host), clientId, new MemoryPersistence());
-    } catch (MqttException e) {
-      System.err.println("Are you sure you specified host correctly? Terminating...");
-      System.exit(1);
-    }
-    // Connect to broker
-    try {
-      MqttConnectOptions connOpts = new MqttConnectOptions();
-      connOpts.setCleanSession(true);
-      client.connect(connOpts).waitForCompletion();
-    } catch (MqttException e) {
-      System.err.println("Impossible to CONNECT to the MQTT server, terminating");
-      System.exit(1);
+      mqtt.setHost(hostToURI(host));
+      mqtt.setClientId(clientId);
+    } catch (URISyntaxException e) {
+      System.out.println("Are you sure you specified host correctly? Terminating...");
     }
     // Initialize channels
     channels = new HashMap<>();
     // Register callbacks
-    client.setCallback(new MqttCallback() {
+    connection = mqtt.callbackConnection();
+    connection.listener(new Listener() {
       @Override
-      public void connectionLost(Throwable throwable) {
+      public void onConnected() {
       }
       @Override
-      public void messageArrived(String mqttChannel, MqttMessage mqttMessage) throws Exception {
-        if (channels.containsKey(mqttChannel))
-          channels.get(mqttChannel).processMessage(mqttMessage.toString());
+      public void onDisconnected() {
       }
       @Override
-      public void deliveryComplete(IMqttDeliveryToken iMqttDeliveryToken) {
+      public void onPublish(UTF8Buffer mqttChannel, Buffer mqttMessage, Runnable ack) {
+        if (channels.containsKey(mqttChannel.toString()))
+          try {
+            channels.get(mqttChannel.toString()).processMessage(new String(mqttMessage.toByteArray(), "UTF-8"));
+          } catch (UnsupportedEncodingException e) {
+            // yes, we are swallowing...
+            System.exit(1);
+          }
+        ack.run();
+      }
+      @Override
+      public void onFailure(Throwable throwable) {
       }
     });
-
+    // Connect to broker in a blocking fashion
+    final CountDownLatch l = new CountDownLatch (1);
+    connection.connect(new Callback<Void>() {
+      @Override
+      public void onSuccess(Void aVoid) {
+        l.countDown();
+      }
+      @Override
+      public void onFailure(Throwable throwable) {
+        System.err.println("Impossible to CONNECT to the MQTT server, terminating");
+        System.exit(1);
+      }
+    });
+    try {
+      if (!l.await(3, TimeUnit.SECONDS)) {
+        // Waits 3 seconds and then timeouts
+        System.err.println("Impossible to CONNECT to the MQTT server: TIMEOUT. Terminating");
+        System.exit(1);
+      }
+    } catch (InterruptedException e) {
+      System.err.println("Impossible to CONNECT to the MQTT server, terminating");
+      System.exit(1);
+    }
   }
 
 
@@ -71,16 +102,29 @@ public class SimpleMQTTClient {
    * @param channel the channel we are subscribing to
    * @param callback the callback to be fired whenever a message is received on this channel
    */
-  public void subscribe(String channel, MessageListener callback) {
-    try {
-      if (client==null || !client.isConnected())
-        throw new MqttException(MqttException.REASON_CODE_CONNECTION_LOST);
+  public void subscribe(final String channel, final MessageListener callback) {
+    if (connection!=null) {
       if (channels.containsKey(channel))
         return;
-      channels.put(channel, callback);
-      client.subscribe(channel, 0).waitForCompletion();
-    } catch (MqttException e) {
-      e.printStackTrace();
+      final CountDownLatch l = new CountDownLatch (1);
+      Topic[] topic = {new Topic(channel, QoS.AT_MOST_ONCE)};
+      connection.subscribe(topic, new Callback<byte[]>() {
+        @Override
+        public void onSuccess(byte[] bytes) {
+          channels.put(channel, callback);
+          l.countDown();
+        }
+        @Override
+        public void onFailure(Throwable throwable) {
+          System.err.println("Impossible to SUBSCRIBE to channel \"" + channel + "\"");
+          l.countDown();
+        }
+      });
+      try {
+        l.await();
+      } catch (InterruptedException e) {
+        System.err.println("Impossible to SUBSCRIBE to channel \"" + channel + "\"");
+      }
     }
   }
 
@@ -91,15 +135,17 @@ public class SimpleMQTTClient {
    * @param channel the channel we are unsubscribing to
    */
   public void unsubscribe(String channel) {
-    try {
-      if (client==null || !client.isConnected())
-        throw new MqttException(MqttException.REASON_CODE_CONNECTION_LOST);
-      if (!channels.containsKey(channel))
-        return;
-      client.unsubscribe(channel);
+    if (connection!=null) {
       channels.remove(channel);
-    } catch (MqttException e) {
-      e.printStackTrace();
+      UTF8Buffer[] topic = {UTF8Buffer.utf8(channel)};
+      connection.unsubscribe(topic, new Callback<Void>() {
+        @Override
+        public void onSuccess(Void aVoid) {
+        }
+        @Override
+        public void onFailure(Throwable throwable) {
+        }
+      });
     }
   }
 
@@ -119,15 +165,18 @@ public class SimpleMQTTClient {
 	 * @param channel
    * @param message
 	 */
-	public void publish(String channel, String message) {
-    try {
-      if (client==null || !client.isConnected())
-        throw new MqttException(MqttException.REASON_CODE_CONNECTION_LOST);
-      client.publish(channel, message.getBytes(), 0, false);
-    } catch (MqttException e) {
-      System.out.println("Impossible to publish message to channel " + channel);
+	public void publish(final String channel, String message) {
+    if (connection!=null) {
+      connection.publish(channel, message.getBytes(), QoS.AT_MOST_ONCE, false, new Callback<Void>() {
+        @Override
+        public void onSuccess(Void aVoid) {
+        }
+        @Override
+        public void onFailure(Throwable throwable) {
+          System.out.println("Impossible to publish message to channel " + channel);
+        }
+      });
     }
-
   }
 
 
@@ -135,12 +184,17 @@ public class SimpleMQTTClient {
 	 * Disconnects the client.
 	 */
 	public void disconnect() {
-    if (client!= null && client.isConnected())
-      try {
-        client.disconnect(5000);
-      } catch (MqttException e) {
-        // Exception when trying to disconnect???? What? Ignore
-      }
+    if (connection!=null) {
+      connection.disconnect(new Callback<Void>() {
+        @Override
+        public void onSuccess(Void aVoid) {
+        }
+
+        @Override
+        public void onFailure(Throwable throwable) {
+        }
+      });
+    }
   }
 
 
