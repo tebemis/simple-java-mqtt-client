@@ -1,5 +1,6 @@
 package ltg.commons.examples;
 
+import ltg.commons.MessageListener;
 import ltg.commons.SimpleMQTTClient;
 
 /**
@@ -13,25 +14,36 @@ public class MQTTClientDemo {
 	public static void main(String[] args) {
 
     // Let's create a new client and connect to a broker
-		SimpleMQTTClient sc = new SimpleMQTTClient("localhost", "test-bot");
+		final SimpleMQTTClient sc = new SimpleMQTTClient("ltg.evl.uic.edu", "test-bot");
 
     // Subscribe to channel "demo1" and set a callback that is
     // fired whenever a new message is received.
     // This particular callback takes the message and publishes it to "demo1-bounce" channel.
-    sc.subscribe("demo1", message -> {
-      String bounce_channel = "demo1-bounce";
-      System.out.println("Received \"" + message + "\" on demo1. Bouncing it back to \""+ bounce_channel + "\"");
-      sc.publish(bounce_channel, message);
+    try {
+      Thread.sleep(2000);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
+    sc.subscribe("demo1", new MessageListener() {
+      @Override
+      public void processMessage(String message) {
+        String bounce_channel = "demo1-bounce";
+        System.out.println("Received \"" + message + "\" on demo1. Bouncing it back to \""+ bounce_channel + "\"");
+        sc.publish(bounce_channel, message);
+      }
     });
     System.out.println("Subscribed to channels " + sc.getSubscribedChannels());
 
     // Subscribe to channel "demo2" and set a callback
     // that prints out the received message and unsubscribes
     // from the channel.
-    sc.subscribe("demo2", message -> {
-      System.out.println("Received \"" + message + "\" on demo2");
-      sc.unsubscribe("demo2");
-      System.out.println("Subscribed to channels " + sc.getSubscribedChannels());
+    sc.subscribe("demo2", new MessageListener() {
+      @Override
+      public void processMessage(String message) {
+        System.out.println("Received \"" + message + "\" on demo2");
+        sc.unsubscribe("demo2");
+        System.out.println("Subscribed to channels " + sc.getSubscribedChannels());
+      }
     });
     System.out.println("Subscribed to channels " + sc.getSubscribedChannels());
 
