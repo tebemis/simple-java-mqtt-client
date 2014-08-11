@@ -35,7 +35,12 @@ public class MQTTClientDemo {
 		SimpleMQTTClient sc = new SimpleMQTTClient("localhost", "test-bot");
 
     // Subscribe to a channel and register a callback for it
-    sc.subscribe("myChannel", message -> System.out.println(message));
+    sc.subscribe("myChannel", new MessageListener() {
+      @Override
+      public void processMessage(String message) {
+        System.out.println(message);
+      }
+    });
     
     // Do something...
     
