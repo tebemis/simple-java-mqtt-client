@@ -1,4 +1,4 @@
-# Simple MQTT Client in Java [![Build Status](https://travis-ci.org/ltg-uic/simple-java-mqtt-client.svg?branch=master)](https://travis-ci.org/ltg-uic/simple-java-mqtt-client)
+# Simple MQTT Client in Java [![Build Status](https://travis-ci.org/tebemis/simple-java-mqtt-client.svg?branch=master)](https://travis-ci.org/tebemis/simple-java-mqtt-client)
 A simple asynchronous MQTT client written in Java.  
 
 ## Download
