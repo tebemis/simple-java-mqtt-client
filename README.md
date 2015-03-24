@@ -17,7 +17,7 @@ You can either download the zip file from the releases on Github [here](https://
     <dependency>
         <groupId>ltg</groupId>
         <artifactId>simple-java-mqtt-client</artifactId>
-        <version>1.0.0</version>
+        <version>1.0.2</version>
     </dependency>
 </dependencies>
 ...
@@ -31,29 +31,29 @@ import ltg.commons.SimpleMQTTClient;
 public class MQTTClientDemo {
 
 	public static void main(String[] args) {
-    // Create a new client and connect to a broker
-		SimpleMQTTClient sc = new SimpleMQTTClient("localhost", "test-bot");
+        // Create a new client and connect to a broker
+		SimpleMQTTClient sc = new SimpleMQTTClient("localhost");
 
-    // Subscribe to a channel and register a callback for it
-    sc.subscribe("myChannel", new MessageListener() {
-      @Override
-      public void processMessage(String message) {
-        System.out.println(message);
-      }
-    });
+        // Subscribe to a channel and register a callback for it
+        sc.subscribe("myChannel", new MessageListener() {
+            @Override
+            public void processMessage(String message) {
+                System.out.println(message);
+            }
+        });
     
-    // Do something...
+        // Publish to a channel
+        sc.publish("myOtherChannel", "A message from me");
     
-    // Publish to a channel
-    sc.publish("myOtherChannel", "A message from me");
-    
-    // Do something else...
-    
-    // Unsubscribe from a channel
-    sc.unsubscribe("myChannel");
+        // Unsubscribe from a channel
+        sc.unsubscribe("myChannel");
 
 		// Disconnect from broker
 		sc.disconnect();
+
+		// Do something else or the client will die...
+        // while (!Thread.currentThread().isInterrupted()) {
+        // }
 	}
 }
 
@@ -62,5 +62,5 @@ public class MQTTClientDemo {
 For a complete example see `MQTTClientDemo.java` in `ltg.commons.examples`.
 
 # Important note
-This library is based off of a fixed version of the [Eclipse Paho java library](http://www.eclipse.org/paho/clients/java/). Hopefully they will fix their broken Maven repo and release system one day.
+This library is based off of the [fusesource mqtt library ](https://github.com/fusesource/mqtt-client).
 
