@@ -17,7 +17,7 @@ You can either download the zip file from the releases on Github [here](https://
     <dependency>
         <groupId>ltg</groupId>
         <artifactId>simple-java-mqtt-client</artifactId>
-        <version>1.0.2</version>
+        <version>1.0.3</version>
     </dependency>
 </dependencies>
 ...

@@ -78,19 +78,16 @@ public class SimpleMQTTClient {
             }
             @Override
             public void onFailure(Throwable throwable) {
-                System.err.println("Impossible to CONNECT to the MQTT server, terminating");
-                System.exit(1);
+                System.err.println("Impossible to CONNECT to the MQTT server! This MQTT client is now useless, create a new one");
             }
         });
         try {
             if (!l.await(5, TimeUnit.SECONDS)) {
                 // Waits 3 seconds and then timeouts
-                System.err.println("Impossible to CONNECT to the MQTT server: TIMEOUT. Terminating");
-                System.exit(1);
+                System.err.println("Impossible to CONNECT to the MQTT server: TIMEOUT. This MQTT client is now useless, create a new one");
             }
         } catch (InterruptedException e) {
-            System.err.println("Impossible to CONNECT to the MQTT server, terminating");
-            System.exit(1);
+            System.err.println("Impossible to CONNECT to the MQTT server. This MQTT client is useless, create a new one");
         }
     }
 
